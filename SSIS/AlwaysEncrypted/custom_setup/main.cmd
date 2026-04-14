@@ -37,6 +37,7 @@ if exist "%ODBC18_LOCAL%" (
   set "DL_RC=%errorlevel%"
   if %DL_RC% neq 0 (
     echo [ERROR] ODBC Driver 18 download failed from https://aka.ms/downloadmsodbcsql18
+    goto :try17
   ) else (
     set "ODBC18_EXE=%ODBC18_DL%"
   )
@@ -53,6 +54,7 @@ if defined ODBC18_EXE (
   )
 )
 
+:try17
 if exist "%ODBC17_LOCAL%" (
   echo [INFO] Found local installer: %ODBC17_LOCAL%
   set "ODBC17_EXE=%ODBC17_LOCAL%"
@@ -62,11 +64,13 @@ if exist "%ODBC17_LOCAL%" (
   set "DL_RC=%errorlevel%"
   if %DL_RC% neq 0 (
     echo [ERROR] ODBC Driver 17 download failed from https://aka.ms/downloadmsodbcsql17
+    goto :check17
   ) else (
     set "ODBC17_EXE=%ODBC17_DL%"
   )
 )
 
+:check17
 if not defined ODBC17_EXE (
   echo [ERROR] Could not acquire ODBC Driver 17 installer.
   exit /b 1
