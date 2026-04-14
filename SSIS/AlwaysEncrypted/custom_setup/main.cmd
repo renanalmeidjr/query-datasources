@@ -34,8 +34,7 @@ if exist "%ODBC18_LOCAL%" (
 ) else (
   echo [INFO] Downloading ODBC Driver 18 installer from aka.ms...
   powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/downloadmsodbcsql18' -OutFile '%ODBC18_DL%' -ErrorAction Stop } catch { exit 1 }"
-  set "DL_RC=%errorlevel%"
-  if %DL_RC% neq 0 (
+  if %errorlevel% neq 0 (
     echo [ERROR] ODBC Driver 18 download failed from https://aka.ms/downloadmsodbcsql18
     goto :try17
   ) else (
@@ -61,8 +60,7 @@ if exist "%ODBC17_LOCAL%" (
 ) else (
   echo [INFO] Downloading ODBC Driver 17 installer from aka.ms...
   powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/downloadmsodbcsql17' -OutFile '%ODBC17_DL%' -ErrorAction Stop } catch { exit 1 }"
-  set "DL_RC=%errorlevel%"
-  if %DL_RC% neq 0 (
+  if %errorlevel% neq 0 (
     echo [ERROR] ODBC Driver 17 download failed from https://aka.ms/downloadmsodbcsql17
     goto :check17
   ) else (
@@ -78,7 +76,7 @@ if not defined ODBC17_EXE (
 
 echo [INFO] Installing ODBC Driver 17 silently...
 "%ODBC17_EXE%" /quiet /norestart IACCEPTMSODBCSQLLICENSETERMS=YES ADDLOCAL=ALL
-if not %errorlevel%==0 (
+if %errorlevel% neq 0 (
   echo [ERROR] ODBC Driver 17 installation failed.
   exit /b 1
 )
