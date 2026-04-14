@@ -9,25 +9,33 @@ powershell -NoProfile -Command ^
   "$ErrorActionPreference = 'Stop';" ^
   "function Test-MsiSignature([string]$Path) {" ^
   "  $sig = Get-AuthenticodeSignature -FilePath $Path;" ^
-  "  if ($sig.Status -ne 'Valid' -or -not $sig.SignerCertificate -or $sig.SignerCertificate.Subject -notlike '*Microsoft*') {" ^
+  "  if ($sig.Status -ne 'Valid' -or -not $sig.SignerCertificate) {" ^
   "    throw ('Invalid installer signature for ' + $Path + '. Status=' + $sig.Status);" ^
   "  }" ^
+  "  $subject = $sig.SignerCertificate.Subject;" ^
+  "  if ($subject -notlike '*Microsoft Corporation*' -and $subject -notlike '*CN=Microsoft*') {" ^
+  "    throw ('Invalid installer signature for ' + $Path + '. Status=' + $sig.Status);" ^
+  "  }" ^
+  "}" ^
+  "function Install-Msi([string]$Path, [string]$Label) {" ^
+  "  $proc = Start-Process msiexec.exe -ArgumentList '/i', $Path, '/quiet', '/norestart', 'IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait -NoNewWindow -PassThru;" ^
+  "  if ($proc.ExitCode -ne 0) { throw ($Label + ' installation failed with exit code: ' + $proc.ExitCode) }" ^
   "}" ^
   "$driver18 = Get-ItemProperty -Path 'HKLM:\SOFTWARE\ODBC\ODBCINST.INI\ODBC Driver 18 for SQL Server' -ErrorAction SilentlyContinue;" ^
   "if (-not $driver18) {" ^
   "  Write-Host '[INFO] ODBC Driver 18 not found. Installing...';" ^
   "  $msi18 = Join-Path $env:TEMP 'msodbcsql18.msi';" ^
-  "  Invoke-WebRequest -Uri 'https://aka.ms/downloadmsodbcsql18' -OutFile $msi18;" ^
+  "  Invoke-WebRequest -Uri 'https://aka.ms/downloadmsodbcsql18' -OutFile $msi18 -UseBasicParsing;" ^
   "  Test-MsiSignature -Path $msi18;" ^
-  "  Start-Process msiexec.exe -ArgumentList '/i', $msi18, '/quiet', '/norestart', 'IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait -NoNewWindow;" ^
+  "  Install-Msi -Path $msi18 -Label 'ODBC Driver 18';" ^
   "}" ^
   "$driver18 = Get-ItemProperty -Path 'HKLM:\SOFTWARE\ODBC\ODBCINST.INI\ODBC Driver 18 for SQL Server' -ErrorAction SilentlyContinue;" ^
   "if (-not $driver18) {" ^
   "  Write-Host '[WARN] ODBC Driver 18 install not detected. Trying Driver 17 fallback...';" ^
   "  $msi17 = Join-Path $env:TEMP 'msodbcsql17.msi';" ^
-  "  Invoke-WebRequest -Uri 'https://aka.ms/downloadmsodbcsql17' -OutFile $msi17;" ^
+  "  Invoke-WebRequest -Uri 'https://aka.ms/downloadmsodbcsql17' -OutFile $msi17 -UseBasicParsing;" ^
   "  Test-MsiSignature -Path $msi17;" ^
-  "  Start-Process msiexec.exe -ArgumentList '/i', $msi17, '/quiet', '/norestart', 'IACCEPTMSODBCSQLLICENSETERMS=YES' -Wait -NoNewWindow;" ^
+  "  Install-Msi -Path $msi17 -Label 'ODBC Driver 17';" ^
   "}" ^
   "$driver18 = Get-ItemProperty -Path 'HKLM:\SOFTWARE\ODBC\ODBCINST.INI\ODBC Driver 18 for SQL Server' -ErrorAction SilentlyContinue;" ^
   "$driver17 = Get-ItemProperty -Path 'HKLM:\SOFTWARE\ODBC\ODBCINST.INI\ODBC Driver 17 for SQL Server' -ErrorAction SilentlyContinue;" ^
