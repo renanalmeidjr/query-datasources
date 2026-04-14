@@ -33,7 +33,7 @@ if exist "%ODBC18_LOCAL%" (
   set "ODBC18_EXE=%ODBC18_LOCAL%"
 ) else (
   echo [INFO] Downloading ODBC Driver 18 installer from aka.ms...
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/downloadmsodbcsql18' -OutFile '%ODBC18_DL%'"
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/downloadmsodbcsql18' -OutFile '%ODBC18_DL%' -ErrorAction Stop } catch { Write-Host '[ERROR] ODBC Driver 18 download failed:' $_.Exception.Message; exit 1 }"
   if %errorlevel%==0 (
     set "ODBC18_EXE=%ODBC18_DL%"
   )
@@ -55,7 +55,7 @@ if exist "%ODBC17_LOCAL%" (
   set "ODBC17_EXE=%ODBC17_LOCAL%"
 ) else (
   echo [INFO] Downloading ODBC Driver 17 installer from aka.ms...
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/downloadmsodbcsql17' -OutFile '%ODBC17_DL%'"
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "try { Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/downloadmsodbcsql17' -OutFile '%ODBC17_DL%' -ErrorAction Stop } catch { Write-Host '[ERROR] ODBC Driver 17 download failed:' $_.Exception.Message; exit 1 }"
   if %errorlevel%==0 (
     set "ODBC17_EXE=%ODBC17_DL%"
   )
