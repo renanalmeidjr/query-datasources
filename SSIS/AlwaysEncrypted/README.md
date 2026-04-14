@@ -21,6 +21,7 @@ Observed failures:
 
 1. **Decimal precision mismatch**
    - Runtime error shows `decimal(9,4)` sent to encrypted `decimal(19,4)`.
+   - In this failing path, ADO.NET Destination can parameterize decimals with a default precision shape (`9,4`) instead of the target encrypted column metadata (`19,4`).
    - With Always Encrypted, parameter metadata must match exactly, so this fails during statement preparation.
 
 2. **NullReferenceException / Object reference not set** for Randomized `nvarchar`

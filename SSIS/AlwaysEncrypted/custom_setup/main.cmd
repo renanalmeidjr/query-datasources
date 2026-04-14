@@ -68,8 +68,11 @@ if exist "%ODBC17_LOCAL%" (
   )
 )
 
-:check17
-if defined ODBC17_EXE goto :install17
+if defined ODBC17_EXE (
+  goto :install17
+) else (
+  goto :fail17
+)
 
 :fail17
 echo [ERROR] Could not acquire ODBC Driver 17 installer.
