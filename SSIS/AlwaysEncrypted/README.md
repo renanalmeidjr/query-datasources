@@ -86,7 +86,7 @@ ADF SSIS IR nodes are managed VMs; if the required ODBC driver is not present, i
 
 ### How to wire custom setup in ADF
 
-1. Zip your custom setup payload (must include `main.cmd` at the root of the zip file).
+1. Zip your custom setup payload with `main.cmd` at the root of the zip file. If you include local installers (for example `msodbcsql18.exe`/`msodbcsql17.exe`), place them at the same root level so `main.cmd` can find them.
 2. Upload to Azure Storage container.
 3. Generate SAS URL.
 4. In ADF -> SSIS Integration Runtime -> **Custom setup** -> add the package/SAS reference.
