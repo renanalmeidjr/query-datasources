@@ -38,12 +38,17 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using Azure.Core;
-using Azure.Identity;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Microsoft.Data.SqlClient;
 
 public static class ClientEncryptionExample
 {
+    private static void ValidateAesDek(byte[] dek)
+    {
+        if (dek is null || (dek.Length != 16 && dek.Length != 24 && dek.Length != 32))
+            throw new InvalidOperationException("Invalid DEK length. Expected 16, 24, or 32 bytes for AES.");
+    }
+
     // Persist this once (e.g., config table/secret) and reuse for decrypt operations.
     // It is safe to store wrapped DEK in DB/config because AKV key is required to unwrap.
     public static byte[] WrapDekWithAkv(Uri keyId, byte[] dek, TokenCredential credential)
@@ -57,6 +62,7 @@ public static class ClientEncryptionExample
     {
         var cryptoClient = new CryptographyClient(keyId, credential);
         var unwrapResult = cryptoClient.UnwrapKey(KeyWrapAlgorithm.RsaOaep256, wrappedDek);
+        ValidateAesDek(unwrapResult.Key);
         return unwrapResult.Key;
     }
 
@@ -64,7 +70,9 @@ public static class ClientEncryptionExample
     // [version:1][ivLen:4][iv][tagLen:4][tag][cipherLen:4][cipher]
     public static byte[] EncryptAesGcm(string plaintext, byte[] dek)
     {
+        ValidateAesDek(dek);
         byte[] input = Encoding.UTF8.GetBytes(plaintext);
+        // 12-byte nonce is the NIST-recommended IV size for AES-GCM.
         byte[] iv = RandomNumberGenerator.GetBytes(12);
         byte[] cipher = new byte[input.Length];
         byte[] tag = new byte[16];
@@ -81,41 +89,48 @@ public static class ClientEncryptionExample
         tag.CopyTo(output, offset); offset += tag.Length;
         BinaryPrimitives.WriteInt32BigEndian(output.AsSpan(offset, 4), cipher.Length); offset += 4;
         cipher.CopyTo(output, offset);
+        CryptographicOperations.ZeroMemory(input);
         return output;
     }
 
     public static void InsertEmployeeCiphertextOnly(
         string sqlConnectionString,
-        Uri keyId,
+        CryptographyClient cryptoClient,
         byte[] wrappedDek,
         string ssnPlaintext,
         decimal salaryPlaintext,
         string firstName,
         string lastName)
     {
-        TokenCredential credential = new DefaultAzureCredential();
-        byte[] dek = UnwrapDekWithAkv(keyId, wrappedDek, credential);
+        // Reuse cryptoClient across inserts to avoid repeated auth/client initialization cost.
+        byte[] dek = cryptoClient.UnwrapKey(KeyWrapAlgorithm.RsaOaep256, wrappedDek).Key;
+        ValidateAesDek(dek);
 
-        byte[] ssnCipher = EncryptAesGcm(ssnPlaintext, dek);
-        byte[] salaryCipher = EncryptAesGcm(salaryPlaintext.ToString("0.####"), dek);
+        try
+        {
+            byte[] ssnCipher = EncryptAesGcm(ssnPlaintext, dek);
+            byte[] salaryCipher = EncryptAesGcm(salaryPlaintext.ToString("0.####"), dek);
 
-        const string sql = @"
+            const string sql = @"
 INSERT INTO HR.Employees2_ClientEncrypted
     (SSN_Encrypted, Salary_Encrypted, FirstName, LastName)
 VALUES
     (@ssnEncrypted, @salaryEncrypted, @firstName, @lastName);";
 
-        using var conn = new SqlConnection(sqlConnectionString);
-        using var cmd = new SqlCommand(sql, conn);
-        cmd.Parameters.Add("@ssnEncrypted", System.Data.SqlDbType.VarBinary, -1).Value = ssnCipher;
-        cmd.Parameters.Add("@salaryEncrypted", System.Data.SqlDbType.VarBinary, -1).Value = salaryCipher;
-        cmd.Parameters.Add("@firstName", System.Data.SqlDbType.NVarChar, 100).Value = firstName;
-        cmd.Parameters.Add("@lastName", System.Data.SqlDbType.NVarChar, 100).Value = lastName;
+            using var conn = new SqlConnection(sqlConnectionString);
+            using var cmd = new SqlCommand(sql, conn);
+            cmd.Parameters.Add("@ssnEncrypted", System.Data.SqlDbType.VarBinary, -1).Value = ssnCipher;
+            cmd.Parameters.Add("@salaryEncrypted", System.Data.SqlDbType.VarBinary, -1).Value = salaryCipher;
+            cmd.Parameters.Add("@firstName", System.Data.SqlDbType.NVarChar, 100).Value = firstName;
+            cmd.Parameters.Add("@lastName", System.Data.SqlDbType.NVarChar, 100).Value = lastName;
 
-        conn.Open();
-        cmd.ExecuteNonQuery();
-
-        CryptographicOperations.ZeroMemory(dek);
+            conn.Open();
+            cmd.ExecuteNonQuery();
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(dek);
+        }
     }
 }
 ```
@@ -127,4 +142,5 @@ VALUES
 - Give app identity (`Managed Identity`/service principal) AKV key permissions: `get`, `wrapKey`, `unwrapKey`.
 - Never write plaintext sensitive values to logs, traces, telemetry, or exception messages.
 - Never concatenate plaintext into SQL text; always pass encrypted bytes as parameters.
+- For highly sensitive fields (for example SSN), prefer transient buffers (`char[]`/`byte[]`) over long-lived immutable strings when practical.
 - Keep SQL tracing enabled if needed: traces should contain ciphertext blobs only for protected fields.
