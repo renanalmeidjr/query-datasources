@@ -37,12 +37,17 @@ using System;
 using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
-using Azure.Core;
+using Azure.Identity;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Microsoft.Data.SqlClient;
 
 public static class ClientEncryptionExample
 {
+    public static CryptographyClient CreateCryptoClient(Uri keyId)
+    {
+        return new CryptographyClient(keyId, new DefaultAzureCredential());
+    }
+
     private static void ValidateAesDek(byte[] dek)
     {
         if (dek is null || (dek.Length != 16 && dek.Length != 24 && dek.Length != 32))
@@ -51,16 +56,14 @@ public static class ClientEncryptionExample
 
     // Persist this once (e.g., config table/secret) and reuse for decrypt operations.
     // It is safe to store wrapped DEK in DB/config because AKV key is required to unwrap.
-    public static byte[] WrapDekWithAkv(Uri keyId, byte[] dek, TokenCredential credential)
+    public static byte[] WrapDekWithAkv(CryptographyClient cryptoClient, byte[] dek)
     {
-        var cryptoClient = new CryptographyClient(keyId, credential);
         var wrapResult = cryptoClient.WrapKey(KeyWrapAlgorithm.RsaOaep256, dek);
         return wrapResult.EncryptedKey;
     }
 
-    public static byte[] UnwrapDekWithAkv(Uri keyId, byte[] wrappedDek, TokenCredential credential)
+    public static byte[] UnwrapDekWithAkv(CryptographyClient cryptoClient, byte[] wrappedDek)
     {
-        var cryptoClient = new CryptographyClient(keyId, credential);
         var unwrapResult = cryptoClient.UnwrapKey(KeyWrapAlgorithm.RsaOaep256, wrappedDek);
         ValidateAesDek(unwrapResult.Key);
         return unwrapResult.Key;
@@ -103,8 +106,7 @@ public static class ClientEncryptionExample
         string lastName)
     {
         // Reuse cryptoClient across inserts to avoid repeated auth/client initialization cost.
-        byte[] dek = cryptoClient.UnwrapKey(KeyWrapAlgorithm.RsaOaep256, wrappedDek).Key;
-        ValidateAesDek(dek);
+        byte[] dek = UnwrapDekWithAkv(cryptoClient, wrappedDek);
 
         try
         {
@@ -133,6 +135,9 @@ VALUES
         }
     }
 }
+
+// Construct once and reuse for wrap/unwrap + insert operations:
+// var cryptoClient = ClientEncryptionExample.CreateCryptoClient(new Uri("<akv-key-id>"));
 ```
 
 ---
