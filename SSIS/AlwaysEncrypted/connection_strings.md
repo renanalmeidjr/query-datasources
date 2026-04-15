@@ -11,7 +11,9 @@ Pwd=<password>;
 Encrypt=yes;
 TrustServerCertificate=no;
 ColumnEncryption=Enabled;
-Connection Timeout=30;
+Connection Timeout=120;
+ConnectRetryCount=3;
+ConnectRetryInterval=10;
 ```
 
 ## 2) ODBC Driver 17 (fallback)
@@ -25,7 +27,9 @@ Pwd=<password>;
 Encrypt=yes;
 TrustServerCertificate=no;
 ColumnEncryption=Enabled;
-Connection Timeout=30;
+Connection Timeout=120;
+ConnectRetryCount=3;
+ConnectRetryInterval=10;
 ```
 
 ## 3) ADO.NET SqlClient (reference only; not preferred for this issue pattern)
@@ -38,8 +42,12 @@ Password=<password>;
 Encrypt=True;
 TrustServerCertificate=False;
 Column Encryption Setting=Enabled;
-Connect Timeout=30;
+Connect Timeout=120;
+ConnectRetryCount=3;
+ConnectRetryInterval=10;
 ```
+
+> **SSIS IR timeout note:** The default `Connection Timeout=30` is often too low for Azure-SSIS IR due to additional network hops, DNS resolution, and Key Vault access for Always Encrypted. Use `120` (seconds) or higher. Also set `CommandTimeout` on SSIS components. See `solutions/odbc_timeout_troubleshooting.md` for full details.
 
 ## 4) Integrated/Managed Identity variants
 

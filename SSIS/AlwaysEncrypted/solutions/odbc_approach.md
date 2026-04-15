@@ -13,14 +13,18 @@ Pwd=<password>;
 Encrypt=yes;
 TrustServerCertificate=no;
 ColumnEncryption=Enabled;
-Connection Timeout=30;
+Connection Timeout=120;
+ConnectRetryCount=3;
+ConnectRetryInterval=10;
 ```
 
 Equivalent with ODBC Driver 17:
 
 ```text
-Driver={ODBC Driver 17 for SQL Server};...;ColumnEncryption=Enabled;
+Driver={ODBC Driver 17 for SQL Server};...;ColumnEncryption=Enabled;Connection Timeout=120;ConnectRetryCount=3;ConnectRetryInterval=10;
 ```
+
+> **Timeout note:** Use `Connection Timeout=120` (or higher) for SSIS IR. The default of 30 s can cause timeouts due to extra network latency in the IR environment. Also set `CommandTimeout=120` on the ODBC Destination / Source component properties. See `odbc_timeout_troubleshooting.md` for full guidance.
 
 ---
 
@@ -64,3 +68,4 @@ WHERE SSN IS NOT NULL
 - `ColumnEncryption=Enabled` in connection string
 - CMK access available to runtime identity (certificate store or Azure Key Vault)
 - Consistent driver/provider versions across dev/test/prod
+- `Connection Timeout=120` and `CommandTimeout=120` for SSIS IR deployments (see `odbc_timeout_troubleshooting.md`)

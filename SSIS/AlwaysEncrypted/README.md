@@ -27,6 +27,7 @@ This guide documents what is currently reliable for loading data into Always Enc
 1. **Primary recommendation**: ODBC-based flow (see `solutions/odbc_approach.md`)
 2. **If you must stay in ADO.NET Destination UI**: use the **ODBC provider** (see `solutions/ado_net_approach.md`)
 3. Avoid default ADO.NET SQL client destination for this specific Always Encrypted pattern
+4. **If ODBC times out in SSIS IR** (~40–50 s): see `solutions/odbc_timeout_troubleshooting.md`
 
 ---
 
@@ -51,6 +52,7 @@ Always include encryption + trusted server identity + Always Encrypted enablemen
 
 - ODBC keyword: `ColumnEncryption=Enabled`
 - SqlClient keyword: `Column Encryption Setting=Enabled`
+- **For SSIS IR**: use `Connection Timeout=120` (default 30 s is often too low) and add `ConnectRetryCount=3; ConnectRetryInterval=10;`
 
 See full templates in `connection_strings.md`.
 
@@ -77,6 +79,7 @@ Always Encrypted writes require runtime access to Column Master Key metadata pro
 - Keep ODBC driver version consistent across all nodes
 - Validate package in catalog with same runtime identity used in production
 - If using AKV CMK, validate identity and network path from IR node, not only from developer machine
+- **Use `Connection Timeout=120`** and set `CommandTimeout=120` on SSIS components — the default 30 s timeout frequently causes failures in SSIS IR due to additional network latency (see `solutions/odbc_timeout_troubleshooting.md`)
 
 ---
 

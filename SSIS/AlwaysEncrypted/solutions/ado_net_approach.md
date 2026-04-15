@@ -25,11 +25,14 @@ Pwd=<password>;
 Encrypt=yes;
 TrustServerCertificate=no;
 ColumnEncryption=Enabled;
-Connection Timeout=30;
+Connection Timeout=120;
+ConnectRetryCount=3;
+ConnectRetryInterval=10;
 ```
 
 Important:
 - `ColumnEncryption=Enabled` is required for Always Encrypted client-side encryption/decryption
+- `Connection Timeout=120` is recommended for SSIS IR (default 30 s often causes timeouts). Also set `CommandTimeout=120` on the ADO.NET Connection Manager. See `odbc_timeout_troubleshooting.md` for details.
 
 ---
 
