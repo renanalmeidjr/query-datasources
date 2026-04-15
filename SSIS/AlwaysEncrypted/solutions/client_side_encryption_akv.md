@@ -43,6 +43,7 @@ using Microsoft.Data.SqlClient;
 
 public static class ClientEncryptionExample
 {
+    // Caller should reuse and dispose this client at application shutdown.
     public static CryptographyClient CreateCryptoClient(Uri keyId)
     {
         return new CryptographyClient(keyId, new DefaultAzureCredential());
@@ -83,17 +84,40 @@ public static class ClientEncryptionExample
         using var aes = new AesGcm(dek);
         aes.Encrypt(iv, input, cipher, tag);
 
-        byte[] output = new byte[1 + 4 + iv.Length + 4 + tag.Length + 4 + cipher.Length];
-        int offset = 0;
-        output[offset++] = 1;
-        BinaryPrimitives.WriteInt32BigEndian(output.AsSpan(offset, 4), iv.Length); offset += 4;
-        iv.CopyTo(output, offset); offset += iv.Length;
-        BinaryPrimitives.WriteInt32BigEndian(output.AsSpan(offset, 4), tag.Length); offset += 4;
-        tag.CopyTo(output, offset); offset += tag.Length;
-        BinaryPrimitives.WriteInt32BigEndian(output.AsSpan(offset, 4), cipher.Length); offset += 4;
-        cipher.CopyTo(output, offset);
-        CryptographicOperations.ZeroMemory(input);
-        return output;
+        try
+        {
+            byte[] output = new byte[1 + 4 + iv.Length + 4 + tag.Length + 4 + cipher.Length];
+            int offset = 0;
+            output[offset++] = 1;
+            BinaryPrimitives.WriteInt32BigEndian(output.AsSpan(offset, 4), iv.Length); offset += 4;
+            iv.CopyTo(output, offset); offset += iv.Length;
+            BinaryPrimitives.WriteInt32BigEndian(output.AsSpan(offset, 4), tag.Length); offset += 4;
+            tag.CopyTo(output, offset); offset += tag.Length;
+            BinaryPrimitives.WriteInt32BigEndian(output.AsSpan(offset, 4), cipher.Length); offset += 4;
+            cipher.CopyTo(output, offset);
+            return output;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(input);
+            CryptographicOperations.ZeroMemory(iv);
+            CryptographicOperations.ZeroMemory(tag);
+            CryptographicOperations.ZeroMemory(cipher);
+        }
+    }
+
+    public static byte[] EncryptDecimal(decimal value, byte[] dek)
+    {
+        Span<int> bits = stackalloc int[4];
+        decimal.GetBits(value, bits);
+        byte[] raw = new byte[16];
+        BinaryPrimitives.WriteInt32BigEndian(raw.AsSpan(0, 4), bits[0]);
+        BinaryPrimitives.WriteInt32BigEndian(raw.AsSpan(4, 4), bits[1]);
+        BinaryPrimitives.WriteInt32BigEndian(raw.AsSpan(8, 4), bits[2]);
+        BinaryPrimitives.WriteInt32BigEndian(raw.AsSpan(12, 4), bits[3]);
+        string base64 = Convert.ToBase64String(raw);
+        CryptographicOperations.ZeroMemory(raw);
+        return EncryptAesGcm(base64, dek);
     }
 
     public static void InsertEmployeeCiphertextOnly(
@@ -111,7 +135,7 @@ public static class ClientEncryptionExample
         try
         {
             byte[] ssnCipher = EncryptAesGcm(ssnPlaintext, dek);
-            byte[] salaryCipher = EncryptAesGcm(salaryPlaintext.ToString("0.####"), dek);
+            byte[] salaryCipher = EncryptDecimal(salaryPlaintext, dek);
 
             const string sql = @"
 INSERT INTO HR.Employees2_ClientEncrypted
@@ -144,7 +168,7 @@ VALUES
 
 ## 4) AKV permissions and operational rules
 
-- Give app identity (`Managed Identity`/service principal) AKV key permissions: `get`, `wrapKey`, `unwrapKey`.
+- Give app identity (`Managed Identity`/`service principal`) AKV key permissions: `get`, `wrapKey`, `unwrapKey`.
 - Never write plaintext sensitive values to logs, traces, telemetry, or exception messages.
 - Never concatenate plaintext into SQL text; always pass encrypted bytes as parameters.
 - For highly sensitive fields (for example SSN), prefer transient buffers (`char[]`/`byte[]`) over long-lived immutable strings when practical.
