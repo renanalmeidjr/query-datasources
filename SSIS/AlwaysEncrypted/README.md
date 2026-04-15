@@ -26,7 +26,8 @@ This guide documents what is currently reliable for loading data into Always Enc
 
 1. **Primary recommendation**: ODBC-based flow (see `solutions/odbc_approach.md`)
 2. **If you must stay in ADO.NET Destination UI**: use the **ODBC provider** (see `solutions/ado_net_approach.md`)
-3. Avoid default ADO.NET SQL client destination for this specific Always Encrypted pattern
+3. **If your source data starts as plaintext and must never appear in SQL traces/logs**: use explicit client-side encryption with AKV before SQL execution (see `solutions/client_side_encryption_akv.md`)
+4. Avoid default ADO.NET SQL client destination for this specific Always Encrypted pattern
 
 ---
 
