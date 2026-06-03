@@ -1,0 +1,9 @@
+# Build output
+bin/
+obj/
+
+# Local Azure Functions settings (may contain secrets / connection strings)
+local.settings.json
+
+# Azure Functions runtime artifacts
+.azurefunctions/
