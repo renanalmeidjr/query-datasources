@@ -1,0 +1,8 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "SqlConnectionString": "Server=tcp:<servidor>.database.windows.net,1433;Database=<db>;Authentication=Active Directory Default;Encrypt=True;TrustServerCertificate=False;Column Encryption Setting=Enabled;Connect Timeout=30;"
+  }
+}
