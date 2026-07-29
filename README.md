@@ -7,6 +7,7 @@ Repositório de scripts, queries e guias de diagnóstico para diferentes fontes 
 | Pasta / Arquivo                | Descrição                                                                                      |
 |--------------------------------|-----------------------------------------------------------------------------------------------|
 | `azure-diagnostics/`           | Toolkit de diagnóstico para gargalos Keycloak/RHBK × Azure SQL Hyperscale PaaS               |
+| `rhbk-parallel-harness/`       | Cenário paralelo containerizado (Quarkus + Agroal + Helm + Locust) para isolar gargalos      |
 | `AzureFunction/`               | Azure Functions de exemplo (Always Encrypted, Managed Identity)                              |
 | `SSIS/`                        | Pacotes e guias SSIS (Always Encrypted, ODBC)                                                 |
 | `Databricks_Cloud_To_VNet_*`   | Notebooks Databricks — conectividade Cloud → VNet                                             |
