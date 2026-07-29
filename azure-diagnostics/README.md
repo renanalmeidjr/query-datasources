@@ -81,6 +81,9 @@ comportamento da **aplicação / do caminho**, não do banco.
 | `05_correlation_thread_dumps.md`         | Guia de correlação transação-aberta-no-banco ↔ estado da thread na JVM (OpenShift)              |
 | `06_agroal_metrics.md`                   | Métricas do pool Agroal alinhadas ao dado de ~1800 conexões ativas                              |
 | `07_rhbk26_transaction_scope.md`         | Checklist de configuração do RHBK 26 para encurtar o escopo da transação                        |
+| `08_collation_analysis.md`               | Análise técnica: `SQL_Latin1_General_CP1_CI_AS` vs `Latin1_General_100_CI_AS_SC_UTF8`, impacto em performance e avaliação do papel no gargalo de 6K |
+| `09_collation_diagnostics.sql`           | Queries T-SQL: detectar collation mismatch em colunas/índices, implicit conversions, comparar planos Seek vs Scan |
+| `10_collation_migration_guide.md`        | Guia prático: teste comparativo, mudança de colunas-chave (baixo risco), mudança do banco inteiro, métricas de sucesso |
 
 ---
 
@@ -97,6 +100,8 @@ comportamento da **aplicação / do caminho**, não do banco.
 | `agroal_active_count` ≈ `max-size` + `blocking_time` crescente         | `06_agroal_metrics.md` + `01_abertas_vs_executando.sql`                                          | Pool esgotado por retenção — aumentar max-size não resolve; encurtar transação libera conexões               |
 | Benchmark direto (HammerDB) no SQL PaaS entrega >> 6K TPS               | Comparar HammerDB vs Keycloak→PaaS                                                               | Banco tem capacidade de sobra; os 6K são limite da aplicação/caminho, não do banco                          |
 | SQL IaaS trava em 11.5K (não 15K)                                       | Isolar variável motor vs caminho (célula Postgres PaaS vs Keycloak)                              | Parte do gargalo não é o banco — é a app/caminho; SQL IaaS abaixo de 15K prova isso                        |
+| CPU baixo + throughput travado + banco ocioso + logical reads altos      | `09_collation_diagnostics.sql` PARTE 1/3 — detectar implicit conversions e collation mismatch   | Se mismatch detectado: index scan em vez de seek; corrigir collation libera 5–15 % (otimização auxiliar, não causa raiz) |
+| `CONVERT_IMPLICIT` em planos de query de sessão/usuário                  | `09_collation_diagnostics.sql` PARTE 3A/3B + `08_collation_analysis.md`                         | Collation da coluna/índice diverge do esperado pelo driver JDBC; mudar collation das colunas hot path      |
 
 ---
 
@@ -148,6 +153,46 @@ Transação típica capturada no PaaS:
 
 ---
 
+## Collation como fator de performance verificado
+
+### Collations do ambiente
+
+| Item                  | Collation                              | Status                 |
+|-----------------------|----------------------------------------|------------------------|
+| Banco atual (padrão)  | `SQL_Latin1_General_CP1_CI_AS`         | Legado SQL Server       |
+| Collation recomendado | `Latin1_General_100_CI_AS_SC_UTF8`     | Unicode ICU-100, UTF-8  |
+
+### Diferença principal
+
+`SQL_Latin1_General_CP1_CI_AS` usa sort rules legadas do SQL Server (Code Page
+1252); `Latin1_General_100_CI_AS_SC_UTF8` usa sort rules Unicode ICU-100 com
+suporte a caracteres suplementares e encoding UTF-8.  Se a collation de uma
+coluna indexada diverge da collation usada pelo driver JDBC nos parâmetros
+(implicit conversion), o SQL Server **não usa o índice** — faz Index Scan em
+vez de Index Seek.
+
+### Impacto no cenário (1800/40, banco ocioso)
+
+> Collation mismatch **pode contribuir** (scans em vez de seeks, reads extras,
+> locks adicionais), mas **não é a causa raiz** do teto de 6K. O banco está
+> ocioso — 98 % do tempo de vida de cada transação é gasto fora do SQL. A
+> causa raiz está no caminho/JVM (latência PaaS, replicação Infinispan dentro
+> da transação, round-trips extras).
+
+Correto a investigar collation se:
+- `09_collation_diagnostics.sql` PARTE 1 mostrar mismatches em colunas hot path.
+- PARTE 3 mostrar `CONVERT_IMPLICIT` em queries de sessão/usuário.
+
+Se confirmado, a correção (mudar collation das colunas-chave — ver script `10`)
+pode liberar **5–15 % de throughput** como otimização auxiliar.
+
+### Resultado do teste comparativo
+
+> Preencher após executar o ciclo de diagnóstico + teste de carga comparativo.
+> Ver `10_collation_migration_guide.md` Seção 4 para a tabela de resultados.
+
+---
+
 ## Placeholders — substitua antes de usar
 
 | Placeholder               | O que substituir                                                    |
@@ -158,6 +203,9 @@ Transação típica capturada no PaaS:
 | `<pod-ip>`                | IP do pod para curl das métricas                                    |
 | `<porta-management>`      | Porta de management do Quarkus (padrão: `9000`)                     |
 | `%keycloak%`              | Fragmento do `program_name` usado pelo driver JDBC do Keycloak     |
+| `<usuario_teste>`         | Nome de usuário real para queries de diagnóstico comparativo (09)  |
+| `<realm_teste>`           | ID/nome do realm para queries de diagnóstico comparativo (09)      |
+| `<session_id_teste>`      | ID de sessão real para queries de diagnóstico comparativo (09)     |
 
 > **Nenhum segredo ou credencial deve ser commitado.** Todos os valores
 > sensíveis (strings de conexão, senhas, tokens) ficam fora do repositório.
