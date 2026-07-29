@@ -7,6 +7,7 @@ Repositório de scripts, queries e guias de diagnóstico para diferentes fontes 
 | Pasta / Arquivo                | Descrição                                                                                      |
 |--------------------------------|-----------------------------------------------------------------------------------------------|
 | `azure-diagnostics/`           | Toolkit de diagnóstico para gargalos Keycloak/RHBK × Azure SQL Hyperscale PaaS               |
+| `diagnóstico-final/`           | Toolkit “fim do túnel” com os 3 testes críticos (EE, thread dumps correlacionados e Query Store) |
 | `AzureFunction/`               | Azure Functions de exemplo (Always Encrypted, Managed Identity)                              |
 | `SSIS/`                        | Pacotes e guias SSIS (Always Encrypted, ODBC)                                                 |
 | `Databricks_Cloud_To_VNet_*`   | Notebooks Databricks — conectividade Cloud → VNet                                             |
@@ -32,3 +33,6 @@ abertas ociosas. A alavanca é encurtar o escopo `BEGIN..COMMIT`.
 Consulte [`azure-diagnostics/README.md`](./azure-diagnostics/README.md) para
 o fluxo completo de diagnóstico, scripts SQL, Extended Events, guia de
 correlação com thread dumps e checklist de configuração do RHBK 26.
+
+Para execução focada na próxima janela de carga (48h), use o roteiro em
+[`diagnóstico-final/README-diagnosis-final.md`](./diagnóstico-final/README-diagnosis-final.md).
