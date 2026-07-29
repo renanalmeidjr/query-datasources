@@ -1,0 +1,39 @@
+replicaCount: 3
+
+image:
+  repository: ghcr.io/renanalmeidjr/rhbk-parallel-harness
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
+  limits:
+    cpu: "2"
+    memory: "2Gi"
+
+app:
+  pool:
+    maxSize: "50"
+    initialSize: "10"
+    acquireTimeout: "30S"
+  cacheSync:
+    enabled: "false"
+    intervalMs: "100"
+    sessionId: "session-000001"
+  probes:
+    initialDelaySeconds: 15
+    periodSeconds: 10
+
+secret:
+  create: true
+  name: rhbk-parallel-harness-db
+  jdbcUrl: ""
+  username: ""
+  password: ""

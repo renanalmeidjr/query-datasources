@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rhbk-parallel-harness.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "rhbk-parallel-harness.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "rhbk-parallel-harness.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: QUARKUS_CONFIG_LOCATIONS
+              value: /work/config/application.properties
+            - name: JDBC_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: jdbc-url
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.name }}
+                  key: password
+            - name: DB_POOL_MAX_SIZE
+              value: {{ .Values.app.pool.maxSize | quote }}
+            - name: DB_POOL_INITIAL_SIZE
+              value: {{ .Values.app.pool.initialSize | quote }}
+            - name: DB_POOL_ACQUIRE_TIMEOUT
+              value: {{ .Values.app.pool.acquireTimeout | quote }}
+            - name: CACHE_SYNC_ENABLED
+              value: {{ .Values.app.cacheSync.enabled | quote }}
+            - name: CACHE_SYNC_INTERVAL_MS
+              value: {{ .Values.app.cacheSync.intervalMs | quote }}
+            - name: CACHE_SYNC_SESSION_ID
+              value: {{ .Values.app.cacheSync.sessionId | quote }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.app.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.app.probes.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: {{ .Values.app.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.app.probes.periodSeconds }}
+          volumeMounts:
+            - name: config
+              mountPath: /work/config
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "rhbk-parallel-harness.fullname" . }}-config

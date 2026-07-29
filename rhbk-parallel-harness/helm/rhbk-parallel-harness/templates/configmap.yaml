@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rhbk-parallel-harness.fullname" . }}-config
+data:
+  application.properties: |
+    quarkus.http.host=0.0.0.0
+    quarkus.micrometer.export.prometheus.path=/metrics
+    harness.cache-sync.enabled={{ .Values.app.cacheSync.enabled }}
+    harness.cache-sync.interval-ms={{ .Values.app.cacheSync.intervalMs }}
+    harness.cache-sync.session-id={{ .Values.app.cacheSync.sessionId }}
